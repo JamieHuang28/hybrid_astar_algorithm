@@ -14,6 +14,7 @@ using namespace HybridAStar;
 float aStar(Node2D& start, Node2D& goal, Node2D* nodes2D, int width, int height, CollisionDetection& configurationSpace, Visualize& visualization);
 void updateH(Node3D& start, const Node3D& goal, Node2D* nodes2D, float* dubinsLookup, int width, int height, CollisionDetection& configurationSpace, Visualize& visualization);
 Node3D* dubinsShot(Node3D& start, const Node3D& goal, CollisionDetection& configurationSpace);
+Node3D* directionShot(Node3D& start, const Node3D& goal, CollisionDetection& configurationSpace);
 
 //###################################################
 //                                    NODE COMPARISON
@@ -161,13 +162,24 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
       // _________
       // GOAL TEST
       if (*nPred == goal || iterations > Constants::iterations) {
-        // DEBUG
-        return nPred;
+        // // DEBUG
+        // return nPred;
       }
 
       // ____________________
       // CONTINUE WITH SEARCH
       else {
+
+        // direction shot
+        if (Constants::directionShot && nPred->isInRange(goal) && nPred->getPrim() < 3) {
+          nSucc = directionShot(*nPred, goal, configurationSpace);
+
+          if (nSucc != nullptr) {
+            //DEBUG
+            // std::cout << "max diff " << max << std::endl;
+            return nSucc;
+          }
+        }
         // _______________________
         // SEARCH WITH DUBINS SHOT
         if (Constants::dubinsShot && nPred->isInRange(goal) && nPred->getPrim() < 3) {
@@ -518,4 +530,16 @@ Node3D* dubinsShot(Node3D& start, const Node3D& goal, CollisionDetection& config
 
   //  std::cout << "Dubins shot connected, returning the path" << "\n";
   return &dubinsNodes[i - 1];
+}
+
+// direction shoot
+Node3D* directionShot(Node3D& start, const Node3D& goal, CollisionDetection& configurationSpace) {
+  const double kMaxThetaDiff = 0.05;
+  Node3D* fake_path_ptr = nullptr;
+  double direction_inner_prod = std::cos(start.getT()) * std::cos(goal.getT()) + std::sin(start.getT()) * std::sin(goal.getT());
+  if (std::abs(direction_inner_prod) > std::cos(kMaxThetaDiff)) {
+    fake_path_ptr = new Node3D(start);
+    fake_path_ptr->setPred(&start);
+  }
+  return fake_path_ptr;
 }
