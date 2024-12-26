@@ -1,13 +1,6 @@
 #ifndef ALGORITHM_H
 #define ALGORITHM_H
 
-#include <ompl/base/spaces/ReedsSheppStateSpace.h>
-#include <ompl/base/spaces/DubinsStateSpace.h>
-#include <ompl/base/spaces/SE2StateSpace.h>
-#include <ompl/base/State.h>
-
-typedef ompl::base::SE2StateSpace::StateType State;
-
 #include "node3d.h"
 #include "node2d.h"
 #include "visualize.h"

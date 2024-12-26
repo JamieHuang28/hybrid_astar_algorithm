@@ -48,7 +48,6 @@ set(HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/point.h #Boris Lau, Christoph Sprunk, Wolfram Burgard
 
     )
-add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
 ## OPEN MOTION PLANNING LIBRARY
 find_package(ompl REQUIRED)
@@ -70,5 +69,8 @@ endif()
 include_directories(include ${OMPL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 include_directories(include include)
 
-add_executable(example src/example.cpp)
-target_link_libraries(example ${PROJECT_NAME} ${OMPL_LIBRARIES} ${Boost_LIBRARIES})
+add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
+target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME} ${OMPL_LIBRARIES} ${Boost_LIBRARIES})
+
+add_executable(example_${PROJECT_NAME} src/example.cpp)
+target_link_libraries(example_${PROJECT_NAME} ${PROJECT_NAME})

@@ -16,6 +16,7 @@ int main(int argc, char **argv) {
     std::vector<Node3D> smoothed_path_node3d;
     planner.plan(width, height, depth, nStart, nGoal, path_node3d, smoothed_path_node3d);
 
+    printf("path:\n");
     for (const Node3D& node : path_node3d) {
         printf("%f, %f, %f\n", node.getX(), node.getY(), node.getT());
     }
