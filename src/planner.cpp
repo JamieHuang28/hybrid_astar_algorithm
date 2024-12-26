@@ -45,7 +45,9 @@ void Planner::plan(int width, int height, int depth, Node3D &nStart, Node3D &nGo
   // TRACE THE PATH
   smoother.tracePath(nSolution);
   path = smoother.getPath();
+  std::reverse(path.begin(), path.end());
   // // SMOOTH THE PATH
   smoother.smoothPath(voronoiDiagram);
   smoothedPath = smoother.getPath();
+  std::reverse(smoothedPath.begin(), smoothedPath.end());
 }
