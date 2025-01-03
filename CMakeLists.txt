@@ -70,7 +70,7 @@ include_directories(include ${OMPL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 include_directories(include include)
 
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
-target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME} ${OMPL_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${OMPL_LIBRARIES} ${Boost_LIBRARIES})
 
 add_executable(example_${PROJECT_NAME} src/example.cpp)
 target_link_libraries(example_${PROJECT_NAME} ${PROJECT_NAME})

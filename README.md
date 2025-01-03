@@ -13,5 +13,5 @@ sudo apt install libompl-dev
 ```
 mkdir build && cd build
 cmake .. && make -j
-./example
+./example_hybrid_astar_algorithm
 ```
