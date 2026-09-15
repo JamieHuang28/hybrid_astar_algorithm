@@ -147,21 +147,27 @@ inline void collisionLookup(Constants::config* lookup) {
     // set the starting angle to zero;
     theta = 0;
 
-    // set points of rectangle
+    // c = rear-axle reference (node pose). Footprint box is centered on the
+    // geometric center, offset forward by centerToGeometryCenter.
     c.x = (double)size / 2 + points[q].x;
     c.y = (double)size / 2 + points[q].y;
 
-    p[0].x = c.x - Constants::length / 2 / cSize;
-    p[0].y = c.y - Constants::width / 2 / cSize;
+    const double gcX = c.x + Constants::centerToGeometryCenter / cSize;
+    const double gcY = c.y;
+    const double halfL = Constants::length / 2.0 / cSize;
+    const double halfW = Constants::width / 2.0 / cSize;
 
-    p[1].x = c.x - Constants::length / 2 / cSize;
-    p[1].y = c.y + Constants::width / 2 / cSize;
+    p[0].x = gcX - halfL;
+    p[0].y = gcY - halfW;
 
-    p[2].x = c.x + Constants::length / 2 / cSize;
-    p[2].y = c.y + Constants::width / 2 / cSize;
+    p[1].x = gcX - halfL;
+    p[1].y = gcY + halfW;
 
-    p[3].x = c.x + Constants::length / 2 / cSize;
-    p[3].y = c.y - Constants::width / 2 / cSize;
+    p[2].x = gcX + halfL;
+    p[2].y = gcY + halfW;
+
+    p[3].x = gcX + halfL;
+    p[3].y = gcY - halfW;
 
     for (int o = 0; o < Constants::headings; ++o) {
       if (DEBUG) { std::cout << "\ndegrees: " << theta * 180.f / M_PI << std::endl; }

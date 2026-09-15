@@ -12,6 +12,11 @@
 //    HEADING => 0 - 359 degrees, 0 being north pointing towards positive Y
 //    X-COORDINATE => designating the width of the grid
 //    Y-COORDINATE => designating the height of the grid
+//
+//    Pose (x, y, theta) is the REAR-AXLE center.
+//    Bicycle kinematics and Constants::r apply to this point.
+//    The collision footprint is the vehicle box centered at
+//      (x, y) + centerToGeometryCenter * (cos theta, sin theta).
 
 #include <cmath>
 
@@ -59,12 +64,28 @@ static const bool twoD = true;
 static const int iterations = 30000;
 /// [m] --- Uniformly adds a padding around the vehicle
 static const double bloating = 0;
-/// [m] --- The width of the vehicle
-static const double width = 1.75 + 2 * bloating;
-/// [m] --- The length of the vehicle
-static const double length = 2.65 + 2 * bloating;
-/// [m] --- The minimum turning radius of the vehicle
-static const float r = 6;
+// Vehicle geometry from vehicle_param.yaml (CAR_PARAMS).
+// Planner state (x,y,theta) = rear-axle pose.
+/// [m] --- The width of the vehicle (vehicle_width_real)
+static const double width = 2.11 + 2 * bloating;
+/// [m] --- The length of the vehicle (vehicle_length_real)
+static const double length = 4.933 + 2 * bloating;
+/// [m] --- Distance from rear axle to front bumper (front_edge_to_rear_real)
+static const double frontEdgeToRear = 3.89;
+/// [m] --- Distance from rear axle to rear bumper
+static const double backEdgeToRear = length - frontEdgeToRear;
+/// [m] --- Rear axle → geometric center (front_edge_to_center - length/2)
+static const double centerToGeometryCenter = frontEdgeToRear - length / 2.0;
+/// [m] --- Wheel base
+static const double wheelBase = 2.8448;
+/// [rad] --- Max steering-wheel angle
+static const double maxSteerAngle = 8.20304748437;
+/// [#] --- Steering ratio (steering-wheel to front-wheel)
+static const double steerRatio = 14.8;
+/// [rad] --- Max front-wheel angle = max_steer_angle / steer_ratio
+static const double maxFrontWheelAngle = maxSteerAngle / steerRatio;
+/// [m] --- Min turning radius at rear axle = wheel_base / tan(max_front_wheel_angle)
+static const float r = static_cast<float>(wheelBase / std::tan(maxFrontWheelAngle));
 /// [m] --- The number of discretizations in heading
 static const int headings = 72;
 /// [°] --- The discretization value of the heading (goal condition)
@@ -114,17 +135,19 @@ static const int dubinsArea = dubinsWidth * dubinsWidth;
 // _________________________
 // COLLISION LOOKUP SPECIFIC
 
-/// [m] -- The bounding box size length and width to precompute all possible headings
-static const int bbSize = std::ceil((sqrt(width * width + length* length) + 4) / cellSize);
+/// Bounding box (cells) around the rear axle covering the asymmetric footprint.
+/// Must be a true compile-time constant (used as a VLA-free stack array size).
+static const int bbSize =
+    static_cast<int>((2.0 * (frontEdgeToRear + width / 2.0) + 4.0) / cellSize) + 1;
 /// [#] --- The sqrt of the number of discrete positions per cell
 static const int positionResolution = 10;
 /// [#] --- The number of discrete positions per cell
 static const int positions = positionResolution * positionResolution;
-/// A structure describing the relative position of the occupied cell based on the center of the vehicle
+/// A structure describing the relative position of the occupied cell based on the rear axle
 struct relPos {
-  /// the x position relative to the center
+  /// the x position relative to the rear axle
   int x;
-  /// the y position relative to the center
+  /// the y position relative to the rear axle
   int y;
 };
 /// A structure capturing the lookup for each theta configuration
@@ -132,11 +155,10 @@ struct config {
   /// the number of cells occupied by this configuration of the vehicle
   int length;
   /*!
-     \var relPos pos[64]
-     \brief The maximum number of occupied cells
-     \todo needs to be dynamic
+     \var relPos pos[256]
+     \brief Occupied cells relative to the rear axle (asymmetric footprint needs more slots)
   */
-  relPos pos[64];
+  relPos pos[256];
 };
 
 // _________________

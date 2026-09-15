@@ -1,15 +1,9 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.12)
 project(hybrid_astar_algorithm)
 
-
-## C++11
-include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-if(COMPILER_SUPPORTS_CXX14)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
-else()
-    message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
-endif()
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
 set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/algorithm.cpp
@@ -63,14 +57,37 @@ if ( NOT Boost_FOUND )
 
   message(STATUS "This project requires the Boost library, and will not be compiled.")
 
-  return()  
+  return()
 endif()
 
 include_directories(include ${OMPL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 include_directories(include include)
 
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
-target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME} ${OMPL_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${OMPL_LIBRARIES} ${Boost_LIBRARIES})
 
-add_executable(example_${PROJECT_NAME} src/example.cpp)
-target_link_libraries(example_${PROJECT_NAME} ${PROJECT_NAME})
+add_executable(example src/example.cpp)
+target_link_libraries(example ${PROJECT_NAME})
+
+# -------------------- Python bindings (pybind11) --------------------
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+execute_process(
+  COMMAND ${Python3_EXECUTABLE} -m pybind11 --cmakedir
+  OUTPUT_VARIABLE _PYBIND11_DIR
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  RESULT_VARIABLE _PYBIND11_DIR_OK
+)
+if(_PYBIND11_DIR_OK EQUAL 0)
+  set(pybind11_DIR "${_PYBIND11_DIR}")
+endif()
+
+set(PYBIND11_FINDPYTHON ON)
+find_package(pybind11 CONFIG REQUIRED)
+pybind11_add_module(hybrid_astar python/hybrid_astar_pybind.cpp)
+target_include_directories(hybrid_astar PRIVATE include ${OMPL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
+target_link_libraries(hybrid_astar PRIVATE ${PROJECT_NAME} ${OMPL_LIBRARIES} ${Boost_LIBRARIES})
+set_target_properties(hybrid_astar PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python
+  BUILD_RPATH "${CMAKE_BINARY_DIR}"
+)
+message(STATUS "Building Python module hybrid_astar (pybind11_DIR=${pybind11_DIR})")
