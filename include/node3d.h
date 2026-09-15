@@ -10,7 +10,7 @@ namespace HybridAStar {
 /*!
    \brief A three dimensional node class that is at the heart of the algorithm.
 
-   Pose is rear-axle (x, y, theta). Expansion uses m_plan-style bicycle
+   Pose is rear-axle (x, y, theta). Expansion uses bicycle
    primitives: ±stepSize travel with nextNodeNum steer samples.
 */
 class Node3D {
@@ -45,7 +45,7 @@ class Node3D {
   int getPrim() const { return prim; }
   /// Signed travel of the step into this node (+forward / -reverse), or start gear prior
   float getVel() const { return vel; }
-  /// Front-wheel steer angle in degrees (m_plan convention)
+  /// Front-wheel steer angle in degrees
   float getDelta() const { return delta; }
   bool isOpen() const { return o; }
   bool isClosed() const { return c; }
@@ -59,7 +59,7 @@ class Node3D {
   void setG(const float& g) { this->g = g; }
   void setH(const float& h) { this->h = h; }
   int setIdx(int width, int height) {
-    // m_plan: gx=x/xy_res, gy=y/xy_res, gtheta=theta/phi_res (poses in meters)
+    // gx=x/xy_res, gy=y/xy_res, gtheta=theta/phi_res (poses in meters)
     const int gx = static_cast<int>(x / apa_config.HYBRID_ASTAR_PARAMS.xy_grid_resolution);
     const int gy = static_cast<int>(y / apa_config.HYBRID_ASTAR_PARAMS.xy_grid_resolution);
     int gt = static_cast<int>(t / apa_config.HYBRID_ASTAR_PARAMS.phi_grid_resolution);
@@ -86,7 +86,7 @@ class Node3D {
 
   bool isOnGrid(const int width, const int height) const;
 
-  /// m_plan-style successors: ±stepSize × nextNodeNum steers (heap-allocated)
+  /// Bicycle successors: ±stepSize × nextNodeNum steers (heap-allocated)
   std::vector<Node3D*> getNextStates() const;
 
  private:

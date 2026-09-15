@@ -71,8 +71,7 @@ static const float factor2D = sqrt(5) / sqrt(2) + 1;
 
 /// [m] --- The distance to the goal when the analytical solution (Dubin's shot) first triggers
 static const float dubinsShotDistance = 100;
-/// [m] --- The step size for the analytical solution (Dubin's shot) primarily relevant for collision checking
-static const float dubinsStepSize = 1;
+/// Dubins-shot sampling step uses HYBRID_ASTAR_PARAMS.step_size (apa.json).
 
 // ______________________
 // DUBINS LOOKUP SPECIFIC

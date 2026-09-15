@@ -67,16 +67,44 @@ if ( NOT Boost_FOUND )
   return()
 endif()
 
+# -------------------- Protobuf (SbpResult) --------------------
+# System libprotobuf/protoc for C++. Python stubs use a matching newer
+# protoc separately (see python/sbp_result_pb2.py).
+find_program(Protobuf_PROTOC_EXECUTABLE NAMES protoc
+  PATHS /usr/bin /bin NO_DEFAULT_PATH)
+find_package(Protobuf REQUIRED)
+if(NOT Protobuf_PROTOC_EXECUTABLE)
+  set(Protobuf_PROTOC_EXECUTABLE ${PROTOBUF_PROTOC_EXECUTABLE})
+endif()
+set(SBP_RESULT_PROTO ${CMAKE_CURRENT_SOURCE_DIR}/proto/sbp_result.proto)
+set(SBP_RESULT_PB_CC ${CMAKE_CURRENT_BINARY_DIR}/sbp_result.pb.cc)
+set(SBP_RESULT_PB_H ${CMAKE_CURRENT_BINARY_DIR}/sbp_result.pb.h)
+add_custom_command(
+  OUTPUT ${SBP_RESULT_PB_CC} ${SBP_RESULT_PB_H}
+  COMMAND ${Protobuf_PROTOC_EXECUTABLE}
+          --cpp_out=${CMAKE_CURRENT_BINARY_DIR}
+          -I ${CMAKE_CURRENT_SOURCE_DIR}/proto
+          ${SBP_RESULT_PROTO}
+  DEPENDS ${SBP_RESULT_PROTO}
+  COMMENT "Generating sbp_result.pb.cc/h"
+  VERBATIM)
+
 include_directories(
   include
   ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${Protobuf_INCLUDE_DIRS}
   ${OMPL_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS})
 
-add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
+add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS}
+  ${SBP_RESULT_PB_CC} ${SBP_RESULT_PB_H})
 target_compile_definitions(${PROJECT_NAME} PRIVATE
   HYBRID_ASTAR_DEFAULT_APA_JSON="${HYBRID_ASTAR_DEFAULT_APA_JSON}")
-target_link_libraries(${PROJECT_NAME} ${OMPL_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}
+  ${OMPL_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${Protobuf_LIBRARIES})
 
 add_executable(example src/example.cpp)
 target_link_libraries(example ${PROJECT_NAME})
@@ -99,6 +127,8 @@ pybind11_add_module(hybrid_astar python/hybrid_astar_pybind.cpp)
 target_include_directories(hybrid_astar PRIVATE
   include
   ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${Protobuf_INCLUDE_DIRS}
   ${OMPL_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS})
 target_compile_definitions(hybrid_astar PRIVATE
@@ -110,3 +140,4 @@ set_target_properties(hybrid_astar PROPERTIES
 )
 message(STATUS "Building Python module hybrid_astar (pybind11_DIR=${pybind11_DIR})")
 message(STATUS "Default apa.json: ${HYBRID_ASTAR_DEFAULT_APA_JSON}")
+message(STATUS "Protobuf: ${Protobuf_VERSION} protoc=${Protobuf_PROTOC_EXECUTABLE}")

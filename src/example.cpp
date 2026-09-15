@@ -1,5 +1,6 @@
 #include "constants.h"
 #include "planner.h"
+#include "sbp_result.pb.h"
 
 #include <cmath>
 #include <cstdio>
@@ -21,7 +22,6 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Planner embeds large lookup tables (~14MB+); keep it on the heap.
     auto planner = std::make_unique<Planner>();
     planner->initializeLookups();
 
@@ -33,17 +33,15 @@ int main(int argc, char **argv) {
     Node3D nStart(2.f, 5.f, 0.f, 0, 0, nullptr);
     nStart.setVel(apa_config.HYBRID_ASTAR_PARAMS.step_size);
     Node3D nGoal(15.f, 5.f, 0.f, 0, 0, nullptr);
-    std::vector<Node3D> path_node3d;
-    std::vector<Node3D> smoothed_path_node3d;
-    planner->plan(width, height, depth, nStart, nGoal, path_node3d, smoothed_path_node3d);
+    hybrid_astar::SbpResult result = planner->plan(width, height, depth, nStart, nGoal);
 
+    std::printf("status=%d iteration_times=%llu computation_duration=%.2f ms debug=%s\n",
+                static_cast<int>(result.status()),
+                static_cast<unsigned long long>(result.iteration_times()),
+                result.computation_duration(), result.debug_string().c_str());
     printf("path:\n");
-    for (const Node3D& node : path_node3d) {
-        printf("%f, %f, %f\n", node.getX(), node.getY(), node.getT());
-    }
-    printf("smoothed path:\n");
-    for (const Node3D& node : smoothed_path_node3d) {
-        printf("%f, %f, %f\n", node.getX(), node.getY(), node.getT());
+    for (int i = 0; i < result.x_size(); ++i) {
+        printf("%f, %f, %f\n", result.x(i), result.y(i), result.phi(i));
     }
     return 0;
 }

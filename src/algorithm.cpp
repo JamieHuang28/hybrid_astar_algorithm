@@ -47,13 +47,15 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
                                int height2d,
                                CollisionDetection& configurationSpace,
                                float* dubinsLookup,
-                               Visualize& visualization) {
+                               Visualize& visualization,
+                               int& iterations_out) {
 
   // PREDECESSOR AND SUCCESSOR INDEX
   int iPred, iSucc;
   float newG;
   // Number of iterations the algorithm has run for stopping based on Constants::iterations
   int iterations = 0;
+  iterations_out = 0;
 
   // // VISUALIZATION DELAY
   // ros::Duration d(0.003);
@@ -163,7 +165,7 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
       // _________
       // GOAL TEST
       if (*nPred == goal || iterations > Constants::iterations) {
-        // DEBUG
+        iterations_out = iterations;
         return nPred;
       }
 
@@ -176,14 +178,13 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
           nSucc = dubinsShot(*nPred, goal, configurationSpace);
 
           if (nSucc != nullptr && *nSucc == goal) {
-            //DEBUG
-            // std::cout << "max diff " << max << std::endl;
+            iterations_out = iterations;
             return nSucc;
           }
         }
 
         // ______________________________
-        // SEARCH WITH FORWARD SIMULATION (m_plan bicycle primitives)
+        // SEARCH WITH FORWARD SIMULATION (bicycle primitives)
         {
           std::vector<Node3D*> successors = nPred->getNextStates();
           for (Node3D* nSuccCand : successors) {
@@ -223,9 +224,11 @@ Node3D* Algorithm::hybridAStar(Node3D& start,
   }
 
   if (O.empty()) {
+    iterations_out = iterations;
     return nullptr;
   }
 
+  iterations_out = iterations;
   return nullptr;
 }
 
@@ -477,18 +480,19 @@ Node3D* dubinsShot(Node3D& start, const Node3D& goal, CollisionDetection& config
   int i = 0;
   float x = 0.f;
   float length = dubins_path_length(&path);
+  const float step = apa_config.HYBRID_ASTAR_PARAMS.step_size;
 
-  Node3D* dubinsNodes = new Node3D [(int)(length / Constants::dubinsStepSize) + 1];
+  Node3D* dubinsNodes = new Node3D[(int)(length / step) + 1];
 
   // avoid duplicate waypoint
-  x += Constants::dubinsStepSize;
-  while (x <  length) {
+  x += step;
+  while (x < length) {
     double q[3];
     dubins_path_sample(&path, x, q);
     dubinsNodes[i].setX(q[0]);
     dubinsNodes[i].setY(q[1]);
     dubinsNodes[i].setT(Helper::normalizeHeadingRad(q[2]));
-    dubinsNodes[i].setVel(apa_config.HYBRID_ASTAR_PARAMS.step_size);
+    dubinsNodes[i].setVel(step);
     dubinsNodes[i].setDelta(0.f);
 
     // set predecessor before collision check so trace-overlap can run
@@ -503,7 +507,7 @@ Node3D* dubinsShot(Node3D& start, const Node3D& goal, CollisionDetection& config
         std::cout << "looping shot";
       }
 
-      x += Constants::dubinsStepSize;
+      x += step;
       i++;
     } else {
       //      std::cout << "Dubins shot collided, discarding the path" << "\n";

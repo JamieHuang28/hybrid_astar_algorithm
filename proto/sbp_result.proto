@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package hybrid_astar;
+
+/// Matches HybridAStar::SbpStatus (EXCEPTION skips 3 intentionally).
+enum SbpStatus {
+  SBP_STATUS_SUCCESS = 0;
+  SBP_STATUS_INFEASIBLE = 1;
+  SBP_STATUS_TIMEOUT = 2;
+  SBP_STATUS_EXCEPTION = 4;
+}
+
+message SbpResult {
+  repeated double x = 1;
+  repeated double y = 2;
+  repeated double phi = 3;
+  repeated double steer = 4;
+  repeated double v = 5;
+  uint64 iteration_times = 6;
+  double computation_duration = 7;  // [ms]
+  string debug_string = 8;
+  SbpStatus status = 9;
+}

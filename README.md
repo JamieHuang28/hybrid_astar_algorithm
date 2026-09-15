@@ -25,12 +25,4 @@ Python module is written to `build/python/hybrid_astar*.so`.
 cd build && cmake .. && make -j
 jupyter notebook ../plan_once_test.ipynb
 ```
-
-```python
-import sys
-sys.path.insert(0, "build/python")
-import hybrid_astar
-planner = hybrid_astar.Planner()
-result = planner.plan(2, 5, 0, 15, 5, 0, width=20, height=15)
-print(result.path)
-```
+![backward demo figure](./backward_demo.jpg)

@@ -78,7 +78,7 @@ static inline float clamp(float n, float lower, float upper) {
 }
 
 /*!
-   \brief Map ODO init_state.v to start-node gear prior (signed travel).
+   \brief Map init velocity to start-node gear prior (signed travel).
 
    Convention: init_v > 0 → forward (+stepSize), else → reverse (-stepSize).
 */

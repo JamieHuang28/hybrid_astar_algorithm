@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <ctime>
+#include <vector>
 
 #include "constants.h"
 #include "helper.h"
@@ -13,6 +14,7 @@
 #include "smoother.h"
 #include "visualize.h"
 #include "lookup.h"
+#include "sbp_result.pb.h"
 
 namespace HybridAStar {
 /*!
@@ -43,9 +45,10 @@ class Planner {
   void clearObstacleLines();
 
   /*!
-     \brief The central function entry point making the necessary preparations to start the planning.
+     \brief Plan once; SbpResult path points come from the smoothed trajectory.
   */
-  void plan(int width, int height, int depth, Node3D &nStart, Node3D &nGoal, std::vector<Node3D> &path, std::vector<Node3D> &smoothedPath);
+  hybrid_astar::SbpResult plan(int width, int height, int depth, Node3D& nStart,
+                               Node3D& nGoal);
 
  private:
   /// The smoother used for optimizing the path

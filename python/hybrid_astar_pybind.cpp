@@ -12,25 +12,31 @@
 #include "helper.h"
 #include "node3d.h"
 #include "planner.h"
+#include "sbp_result.pb.h"
 
 namespace py = pybind11;
 using HybridAStar::Node3D;
 using HybridAStar::Planner;
 using HybridAStar::geom::LineSegment2d;
 using HybridAStar::geom::Vec2d;
+using hybrid_astar::SbpResult;
+using hybrid_astar::SbpStatus;
 
 namespace {
 
 struct PlanResult {
+  SbpResult sbp;
+  /// [x, y, theta] view of sbp (smoothed trajectory).
   std::vector<std::array<float, 3>> path;
-  std::vector<std::array<float, 3>> smoothed_path;
 };
 
-std::vector<std::array<float, 3>> nodesToArray(const std::vector<Node3D>& nodes) {
+std::vector<std::array<float, 3>> sbpToPath(const SbpResult& sbp) {
   std::vector<std::array<float, 3>> out;
-  out.reserve(nodes.size());
-  for (const auto& n : nodes) {
-    out.push_back({n.getX(), n.getY(), n.getT()});
+  out.reserve(static_cast<std::size_t>(sbp.x_size()));
+  for (int i = 0; i < sbp.x_size(); ++i) {
+    out.push_back({static_cast<float>(sbp.x(i)),
+                   static_cast<float>(sbp.y(i)),
+                   static_cast<float>(sbp.phi(i))});
   }
   return out;
 }
@@ -43,7 +49,6 @@ std::vector<LineSegment2d> parseObstacleLines(const py::object& obj) {
   py::sequence seq = py::reinterpret_borrow<py::sequence>(obj);
   lines.reserve(seq.size());
   for (auto item : seq) {
-    // Accept: [[x0,y0],[x1,y1]] or [x0,y0,x1,y1] or dict with start/end
     if (py::isinstance<py::dict>(item)) {
       py::dict d = py::reinterpret_borrow<py::dict>(item);
       double x0, y0, x1, y1;
@@ -99,21 +104,18 @@ class PyPlanner {
 
     planner_.setObstacleLines(parseObstacleLines(obstacle_lines));
 
-    // Gear prior from ODO init_state.v: >0 forward, else reverse (m_plan-style).
     Node3D start(start_x, start_y, HybridAStar::Helper::normalizeHeadingRad(start_t),
                  0, 0, nullptr);
     start.setVel(HybridAStar::Helper::startVelFromInitV(init_v));
     start.setDelta(0.f);
     Node3D goal(goal_x, goal_y, HybridAStar::Helper::normalizeHeadingRad(goal_t),
                 0, 0, nullptr);
-    std::vector<Node3D> path;
-    std::vector<Node3D> smoothed;
-    planner_.plan(width, height, HybridAStar::apa_config.headings(),
-                  start, goal, path, smoothed);
+    SbpResult sbp = planner_.plan(width, height, HybridAStar::apa_config.headings(),
+                                  start, goal);
 
     PlanResult result;
-    result.path = nodesToArray(path);
-    result.smoothed_path = nodesToArray(smoothed);
+    result.sbp = std::move(sbp);
+    result.path = sbpToPath(result.sbp);
     return result;
   }
 
@@ -153,7 +155,6 @@ void syncModuleAttrs(py::module_& m) {
 PYBIND11_MODULE(hybrid_astar, m) {
   m.doc() = "Hybrid A* planner bindings for debugging";
 
-  // Load config/apa.json (build-time default path) before exposing attrs.
   HybridAStar::loadDefaultApaConfig();
   syncModuleAttrs(m);
 
@@ -173,9 +174,32 @@ PYBIND11_MODULE(hybrid_astar, m) {
       &HybridAStar::ApaConfig::defaultConfigPath,
       "Return the default apa.json path compiled into the module.");
 
+  py::enum_<SbpStatus>(m, "SbpStatus")
+      .value("SUCCESS", hybrid_astar::SBP_STATUS_SUCCESS)
+      .value("INFEASIBLE", hybrid_astar::SBP_STATUS_INFEASIBLE)
+      .value("TIMEOUT", hybrid_astar::SBP_STATUS_TIMEOUT)
+      .value("EXCEPTION", hybrid_astar::SBP_STATUS_EXCEPTION);
+
+  // Protobuf message type is consumed via sbp_result_pb2 in Python; pybind only
+  // exposes PlanResult helpers used by notebooks (status / serialize / path).
   py::class_<PlanResult>(m, "PlanResult")
       .def_readonly("path", &PlanResult::path)
-      .def_readonly("smoothed_path", &PlanResult::smoothed_path);
+      .def_property_readonly(
+          "iteration_times",
+          [](const PlanResult& r) { return r.sbp.iteration_times(); })
+      .def_property_readonly(
+          "computation_duration",
+          [](const PlanResult& r) { return r.sbp.computation_duration(); })
+      .def_property_readonly(
+          "status", [](const PlanResult& r) { return r.sbp.status(); })
+      .def_property_readonly(
+          "debug_string",
+          [](const PlanResult& r) { return r.sbp.debug_string(); })
+      .def("serialize",
+           [](const PlanResult& r) {
+             return py::bytes(r.sbp.SerializeAsString());
+           },
+           "Binary protobuf bytes of underlying SbpResult.");
 
   py::class_<PyPlanner>(m, "Planner")
       .def(py::init<>())
@@ -191,15 +215,9 @@ PYBIND11_MODULE(hybrid_astar, m) {
 Plan once from start pose to goal pose.
 
 Poses are REAR-AXLE center (x, y, theta[rad]).
-Map size is width x height cells of xy_grid_resolution meters each.
-Poses are in meters in that local frame (origin at map corner).
-obstacle_lines: list of segments in the same frame as poses —
-  [[x0,y0],[x1,y1]], [x0,y0,x1,y1], or dict with start_x/y,end_x/y.
-Collision uses oriented box footprint vs lines (overlap + trace).
-init_v: ODO init_state.v gear prior — >0 forward, else reverse
-  (soft bias via start vel / change-of-direction cost).
-Parameters come from config/apa.json (see load_config / default_config_path).
-occupancy: currently ignored.
-Returns PlanResult with path and smoothed_path as list of [x, y, theta].
+Returns PlanResult with:
+  path: list of [x, y, theta] (smoothed trajectory)
+  status / iteration_times / computation_duration / debug_string
+  serialize(): binary SbpResult protobuf bytes (use with sbp_result_pb2)
 )doc");
 }

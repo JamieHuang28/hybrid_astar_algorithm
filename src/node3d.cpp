@@ -27,7 +27,7 @@ bool Node3D::isInRange(const Node3D& goal) const {
 }
 
 //###################################################
-//                         M_PLAN-STYLE NEXT STATES
+//                         BICYCLE NEXT STATES
 //###################################################
 std::vector<Node3D*> Node3D::getNextStates() const {
   // Port of HybridAstar::getNextStates (wheel_base_offset = 0 only).
@@ -61,7 +61,7 @@ std::vector<Node3D*> Node3D::getNextStates() const {
 
     double steer_lower = std::max(static_cast<double>(delta) - max_rate, -max_delta);
     double steer_upper = std::min(static_cast<double>(delta) + max_rate, max_delta);
-    // Gear switch: allow full steer range (m_plan)
+    // Gear switch: allow full steer range
     if (traveled * vel < 0) {
       steer_lower = -max_delta;
       steer_upper = max_delta;
@@ -101,7 +101,7 @@ std::vector<Node3D*> Node3D::getNextStates() const {
 //                                      MOVEMENT COST
 //###################################################
 void Node3D::updateG() {
-  // Match m_plan HybridastarNode::setTrajCost (apa.json penalties).
+  // Trajectory cost from apa.json penalties.
   const float step = apa_config.HYBRID_ASTAR_PARAMS.step_size;
 
   if (pred->vel * vel < 0) {
