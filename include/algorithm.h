@@ -41,6 +41,8 @@ class Algorithm {
                              Node2D* nodes2D,
                              int width,
                              int height,
+                             int width2d,
+                             int height2d,
                              CollisionDetection& configurationSpace,
                              float* dubinsLookup,
                              Visualize& visualization);

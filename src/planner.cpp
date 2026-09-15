@@ -1,10 +1,21 @@
 #include "planner.h"
 
+#include <algorithm>
+#include <cmath>
+
 using namespace HybridAStar;
 //###################################################
 //                                        CONSTRUCTOR
 //###################################################
-Planner::Planner() {};
+Planner::Planner() {
+  loadDefaultApaConfig();
+  const std::size_t n =
+      static_cast<std::size_t>(apa_config.headings()) *
+      static_cast<std::size_t>(apa_config.headings()) *
+      static_cast<std::size_t>(Constants::dubinsWidth) *
+      static_cast<std::size_t>(Constants::dubinsWidth);
+  dubinsLookup = new float[n]();
+}
 
 //###################################################
 //                                       LOOKUPTABLES
@@ -13,8 +24,7 @@ void Planner::initializeLookups() {
   if (Constants::dubinsLookup) {
     Lookup::dubinsLookup(dubinsLookup);
   }
-
-  Lookup::collisionLookup(collisionLookup);
+  // Grid collisionLookup is unused: CollisionDetection uses geometric obstacle_lines.
 }
 
 //###################################################
@@ -29,25 +39,42 @@ void Planner::setMap(int width, int height, bool** binMap) {
   voronoiDiagram.visualize();
 }
 
+void Planner::setObstacleLines(const std::vector<geom::LineSegment2d>& lines) {
+  configurationSpace.setObstacleLines(lines);
+}
+
+void Planner::clearObstacleLines() { configurationSpace.clearObstacleLines(); }
+
 //###################################################
 //                                      PLAN THE PATH
 //###################################################
 void Planner::plan(int width, int height, int depth, Node3D &nStart, Node3D &nGoal, std::vector<Node3D> &path, std::vector<Node3D> &smoothedPath) {
   int length = width * height * depth;
-  // define list pointers and initialize lists
   Node3D* nodes3D = new Node3D[length]();
-  Node2D* nodes2D = new Node2D[width * height]();
-  
-  // CLEAR THE VISUALIZATION
+
+  // 2D heuristic grid uses coarser grid_dijkstra_xy_resolution
+  const float map_w = width * apa_config.HYBRID_ASTAR_PARAMS.xy_grid_resolution;
+  const float map_h = height * apa_config.HYBRID_ASTAR_PARAMS.xy_grid_resolution;
+  const int width2d = std::max(
+      1, static_cast<int>(std::ceil(map_w / apa_config.HYBRID_ASTAR_PARAMS.grid_dijkstra_xy_resolution)));
+  const int height2d = std::max(
+      1, static_cast<int>(std::ceil(map_h / apa_config.HYBRID_ASTAR_PARAMS.grid_dijkstra_xy_resolution)));
+  Node2D* nodes2D = new Node2D[width2d * height2d]();
+
   visualization.clear();
-  // FIND THE PATH
-  Node3D* nSolution = Algorithm::hybridAStar(nStart, nGoal, nodes3D, nodes2D, width, height, configurationSpace, dubinsLookup, visualization);
-  // TRACE THE PATH
+  Node3D* nSolution = Algorithm::hybridAStar(
+      nStart, nGoal, nodes3D, nodes2D, width, height, width2d, height2d,
+      configurationSpace, dubinsLookup, visualization);
   smoother.tracePath(nSolution);
   path = smoother.getPath();
   std::reverse(path.begin(), path.end());
-  // // SMOOTH THE PATH
-  smoother.smoothPath(voronoiDiagram);
+
+  if (voronoiDiagram.getSizeX() > 0 && voronoiDiagram.getSizeY() > 0) {
+    smoother.smoothPath(voronoiDiagram);
+  }
   smoothedPath = smoother.getPath();
   std::reverse(smoothedPath.begin(), smoothedPath.end());
+
+  delete[] nodes3D;
+  delete[] nodes2D;
 }

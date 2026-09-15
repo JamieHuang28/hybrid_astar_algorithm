@@ -2,6 +2,7 @@
 #define NODE3D_H
 
 #include <cmath>
+#include <vector>
 
 #include "constants.h"
 #include "helper.h"
@@ -9,7 +10,8 @@ namespace HybridAStar {
 /*!
    \brief A three dimensional node class that is at the heart of the algorithm.
 
-   Each node has a unique configuration (x, y, theta) in the configuration space C.
+   Pose is rear-axle (x, y, theta). Expansion uses m_plan-style bicycle
+   primitives: ±stepSize travel with nextNodeNum steer samples.
 */
 class Node3D {
  public:
@@ -28,102 +30,77 @@ class Node3D {
     this->c = false;
     this->idx = -1;
     this->prim = prim;
+    this->vel = 0.f;
+    this->delta = 0.f;
   }
 
   // GETTER METHODS
-  /// get the x position
   float getX() const { return x; }
-  /// get the y position
   float getY() const { return y; }
-  /// get the heading theta
   float getT() const { return t; }
-  /// get the cost-so-far (real value)
   float getG() const { return g; }
-  /// get the cost-to-come (heuristic value)
   float getH() const { return h; }
-  /// get the total estimated cost
   float getC() const { return g + h; }
-  /// get the index of the node in the 3D array
   int getIdx() const { return idx; }
-  /// get the number associated with the motion primitive of the node
   int getPrim() const { return prim; }
-  /// determine whether the node is open
+  /// Signed travel of the step into this node (+forward / -reverse), or start gear prior
+  float getVel() const { return vel; }
+  /// Front-wheel steer angle in degrees (m_plan convention)
+  float getDelta() const { return delta; }
   bool isOpen() const { return o; }
-  /// determine whether the node is closed
   bool isClosed() const { return c; }
-  /// determine whether the node is open
   const Node3D* getPred() const { return pred; }
+  bool isForward() const { return vel > 0.f; }
 
   // SETTER METHODS
-  /// set the x position
   void setX(const float& x) { this->x = x; }
-  /// set the y position
   void setY(const float& y) { this->y = y; }
-  /// set the heading theta
   void setT(const float& t) { this->t = t; }
-  /// set the cost-so-far (real value)
   void setG(const float& g) { this->g = g; }
-  /// set the cost-to-come (heuristic value)
   void setH(const float& h) { this->h = h; }
-  /// set and get the index of the node in the 3D grid
-  int setIdx(int width, int height) { this->idx = (int)(t / Constants::deltaHeadingRad) * width * height + (int)(y) * width + (int)(x); return idx;}
-  /// open the node
-  void open() { o = true; c = false;}
-  /// close the node
+  int setIdx(int width, int height) {
+    // m_plan: gx=x/xy_res, gy=y/xy_res, gtheta=theta/phi_res (poses in meters)
+    const int gx = static_cast<int>(x / apa_config.HYBRID_ASTAR_PARAMS.xy_grid_resolution);
+    const int gy = static_cast<int>(y / apa_config.HYBRID_ASTAR_PARAMS.xy_grid_resolution);
+    int gt = static_cast<int>(t / apa_config.HYBRID_ASTAR_PARAMS.phi_grid_resolution);
+    if (gt < 0) {
+      gt = 0;
+    } else if (gt >= apa_config.headings()) {
+      gt = apa_config.headings() - 1;
+    }
+    this->idx = gt * width * height + gy * width + gx;
+    return idx;
+  }
+  void open() { o = true; c = false; }
   void close() { c = true; o = false; }
-  /// set a pointer to the predecessor of the node
+  void setPrim(int prim) { this->prim = prim; }
+  void setVel(float vel) { this->vel = vel; }
+  void setDelta(float delta) { this->delta = delta; }
   void setPred(const Node3D* pred) { this->pred = pred; }
 
-  // UPDATE METHODS
-  /// Updates the cost-so-far for the node x' coming from its predecessor. It also discovers the node.
   void updateG();
 
-  // CUSTOM OPERATORS
-  /// Custom operator to compare nodes. Nodes are equal if their x and y position as well as heading is similar.
-  bool operator == (const Node3D& rhs) const;
+  bool operator==(const Node3D& rhs) const;
 
-  // RANGE CHECKING
-  /// Determines whether it is appropriate to find a analytical solution.
   bool isInRange(const Node3D& goal) const;
 
-  // GRID CHECKING
-  /// Validity check to test, whether the node is in the 3D array.
   bool isOnGrid(const int width, const int height) const;
 
-  // SUCCESSOR CREATION
-  /// Creates a successor in the continous space.
-  Node3D* createSuccessor(const int i);
-
-  // CONSTANT VALUES
-  /// Number of possible directions
-  static const int dir;
-  /// Possible movements in the x direction
-  static const float dx[];
-  /// Possible movements in the y direction
-  static const float dy[];
-  /// Possible movements regarding heading theta
-  static const float dt[];
+  /// m_plan-style successors: ±stepSize × nextNodeNum steers (heap-allocated)
+  std::vector<Node3D*> getNextStates() const;
 
  private:
-  /// the x position
   float x;
-  /// the y position
   float y;
-  /// the heading theta
   float t;
-  /// the cost-so-far
   float g;
-  /// the cost-to-go
   float h;
-  /// the index of the node in the 3D array
   int idx;
-  /// the open value
   bool o;
-  /// the closed value
   bool c;
-  /// the motion primitive of the node
   int prim;
-  /// the predecessor pointer
+  float vel;
+  float delta;
   const Node3D* pred;
 };
 }

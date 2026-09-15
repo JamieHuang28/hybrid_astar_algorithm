@@ -7,6 +7,8 @@ using namespace HybridAStar;
 
 DynamicVoronoi::DynamicVoronoi() {
   sqrt2 = sqrt(2.0);
+  sizeX = 0;
+  sizeY = 0;
   data = NULL;
   gridMap = NULL;
 }

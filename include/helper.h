@@ -77,8 +77,17 @@ static inline float clamp(float n, float lower, float upper) {
   return std::max(lower, std::min(n, upper));
 }
 
+/*!
+   \brief Map ODO init_state.v to start-node gear prior (signed travel).
+
+   Convention: init_v > 0 → forward (+stepSize), else → reverse (-stepSize).
+*/
+static inline float startVelFromInitV(float init_v) {
+  return init_v > 0.f ? apa_config.HYBRID_ASTAR_PARAMS.step_size : -apa_config.HYBRID_ASTAR_PARAMS.step_size;
 }
-}
+
+}  // namespace Helper
+}  // namespace HybridAStar
 
 #endif // HELPER
 

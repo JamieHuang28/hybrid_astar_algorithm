@@ -38,6 +38,10 @@ class Planner {
   */
   void setMap(int width, int height, bool** binMap);
 
+  /// Geometric obstacle segments (same frame/units as Node3D poses).
+  void setObstacleLines(const std::vector<geom::LineSegment2d>& lines);
+  void clearObstacleLines();
+
   /*!
      \brief The central function entry point making the necessary preparations to start the planning.
   */
@@ -56,10 +60,8 @@ class Planner {
   bool validStart = false;
   /// Flags for allowing the planner to plan
   bool validGoal = false;
-  /// A lookup table for configurations of the vehicle and their spatial occupancy enumeration
-  Constants::config collisionLookup[Constants::headings * Constants::positions];
-  /// A lookup of analytical solutions (Dubin's paths)
-  float* dubinsLookup = new float [Constants::headings * Constants::headings * Constants::dubinsWidth * Constants::dubinsWidth];
+  /// A lookup of analytical solutions (Dubin's paths); sized after config load
+  float* dubinsLookup = nullptr;
 };
 }
 #endif // PLANNER_H

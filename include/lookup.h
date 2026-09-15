@@ -2,6 +2,7 @@
 #define COLLISIONLOOKUP
 
 #include <iostream>
+#include <vector>
 #include "dubins.h"
 #include "constants.h"
 
@@ -17,14 +18,14 @@ inline void dubinsLookup(float* lookup) {
 
   DubinsPath path;
 
-  int width = Constants::dubinsWidth / Constants::cellSize;
+  int width = Constants::dubinsWidth / apa_config.cell_size();
 
   //  // increase the width by one to make it square
   //  if (width % 2 != 0) {
   //    width++;
   //  }
 
-  const int headings = Constants::headings;
+  const int headings = apa_config.headings();
 
   // start and goal vector
   double start[3];
@@ -40,20 +41,20 @@ inline void dubinsLookup(float* lookup) {
 
       // iterate over the start headings
       for (int h0 = 0; h0 < headings; ++h0) {
-        start[2] = Constants::deltaHeadingRad * h0;
+        start[2] = apa_config.delta_heading_rad() * h0;
 
         // iterate over the goal headings
         for (int h1 = 0; h1 < headings; ++h1) {
-          goal[2] = Constants::deltaHeadingRad * h1;
+          goal[2] = apa_config.delta_heading_rad() * h1;
 
           // calculate the actual cost
-          dubins_init(start, goal, Constants::r, &path);
+          dubins_init(start, goal, apa_config.r(), &path);
           lookup[X * headings * headings * width + Y * headings * headings + h0 * headings + h1] = dubins_path_length(&path);
 
           if (DEBUG && lookup[X * headings * headings * width + Y * headings * headings + h0 * headings + h1] < sqrt(X * X + Y * Y) * 1.000001) {
             std::cout << X << " | " << Y << " | "
-                      << Constants::deltaHeadingDeg* h0 << " | "
-                      << Constants::deltaHeadingDeg* h1 << " length: "
+                      << apa_config.delta_heading_deg()* h0 << " | "
+                      << apa_config.delta_heading_deg()* h1 << " length: "
                       << lookup[X * headings * headings * width + Y * headings * headings + h0 * headings + h1] << "\n";
 
           }
@@ -82,9 +83,9 @@ inline void collisionLookup(Constants::config* lookup) {
   bool DEBUG = false;
   std::cout << "I am building the collision lookup table...";
   // cell size
-  const float cSize = Constants::cellSize;
+  const float cSize = apa_config.cell_size();
   // bounding box size length/width
-  const int size = Constants::bbSize;
+  const int size = apa_config.bb_size(Constants::bloating);
 
   struct point {
     double x;
@@ -121,8 +122,8 @@ inline void collisionLookup(Constants::config* lookup) {
   // positive or negative step direction
   int stepX;
   int stepY;
-  // grid
-  bool cSpace[size * size];
+  // grid (runtime size from apa.json-derived bbSize)
+  std::vector<char> cSpace(static_cast<std::size_t>(size) * static_cast<std::size_t>(size), 0);
   bool inside = false;
   int hcross1 = 0;
   int hcross2 = 0;
@@ -132,7 +133,7 @@ inline void collisionLookup(Constants::config* lookup) {
   int count = 0;
   const int positionResolution = Constants::positionResolution;
   const int positions = Constants::positions;
-  point points[positions];
+  std::vector<point> points(static_cast<std::size_t>(positions));
 
   // generate all discrete positions within one cell
   for (int i = 0; i < positionResolution; ++i) {
@@ -152,10 +153,10 @@ inline void collisionLookup(Constants::config* lookup) {
     c.x = (double)size / 2 + points[q].x;
     c.y = (double)size / 2 + points[q].y;
 
-    const double gcX = c.x + Constants::centerToGeometryCenter / cSize;
+    const double gcX = c.x + apa_config.center_to_geometry_center(Constants::bloating) / cSize;
     const double gcY = c.y;
-    const double halfL = Constants::length / 2.0 / cSize;
-    const double halfW = Constants::width / 2.0 / cSize;
+    const double halfL = apa_config.length(Constants::bloating) / 2.0 / cSize;
+    const double halfW = apa_config.width(Constants::bloating) / 2.0 / cSize;
 
     p[0].x = gcX - halfL;
     p[0].y = gcY - halfW;
@@ -169,7 +170,7 @@ inline void collisionLookup(Constants::config* lookup) {
     p[3].x = gcX + halfL;
     p[3].y = gcY - halfW;
 
-    for (int o = 0; o < Constants::headings; ++o) {
+    for (int o = 0; o < apa_config.headings(); ++o) {
       if (DEBUG) { std::cout << "\ndegrees: " << theta * 180.f / M_PI << std::endl; }
 
       // initialize cSpace
@@ -191,7 +192,7 @@ inline void collisionLookup(Constants::config* lookup) {
       }
 
       // create the next angle
-      theta += Constants::deltaHeadingRad;
+      theta += apa_config.delta_heading_rad();
 
       // cell traversal clockwise
       for (int k = 0; k < 4; ++k) {
@@ -300,15 +301,15 @@ inline void collisionLookup(Constants::config* lookup) {
         for (int j = 0; j < size; ++j) {
           if (cSpace[i * size + j]) {
             // compute the relative position of the car cells
-            lookup[q * Constants::headings + o].pos[count].x = j - (int)c.x;
-            lookup[q * Constants::headings + o].pos[count].y = i - (int)c.y;
+            lookup[q * apa_config.headings() + o].pos[count].x = j - (int)c.x;
+            lookup[q * apa_config.headings() + o].pos[count].y = i - (int)c.y;
             // add one for the length of the current list
             count++;
           }
         }
       }
 
-      lookup[q * Constants::headings + o].length = count;
+      lookup[q * apa_config.headings() + o].length = count;
 
       if (DEBUG) {
         //DEBUG
@@ -325,10 +326,10 @@ inline void collisionLookup(Constants::config* lookup) {
         }
 
         //TESTING
-        std::cout << "\n\nthe center of " << q* Constants::headings + o << " is at " << c.x << " | " << c.y << std::endl;
+        std::cout << "\n\nthe center of " << q* apa_config.headings() + o << " is at " << c.x << " | " << c.y << std::endl;
 
-        for (int i = 0; i < lookup[q * Constants::headings + o].length; ++i) {
-          std::cout << "[" << i << "]\t" << lookup[q * Constants::headings + o].pos[i].x << " | " << lookup[q * Constants::headings + o].pos[i].y << std::endl;
+        for (int i = 0; i < lookup[q * apa_config.headings() + o].length; ++i) {
+          std::cout << "[" << i << "]\t" << lookup[q * apa_config.headings() + o].pos[i].x << " | " << lookup[q * apa_config.headings() + o].pos[i].y << std::endl;
         }
       }
     }

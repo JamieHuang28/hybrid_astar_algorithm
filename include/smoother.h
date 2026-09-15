@@ -63,7 +63,7 @@ class Smoother {
 
  private:
   /// maximum possible curvature of the non-holonomic vehicle
-  float kappaMax = 1.f / (Constants::r * 1.1);
+  float kappaMax = 1.f / (apa_config.r() * 1.1);
   /// maximum distance to obstacles that is penalized
   float obsDMax = Constants::minRoadWidth;
   /// maximum distance for obstacles to influence the voronoi field

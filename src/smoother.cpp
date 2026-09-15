@@ -4,11 +4,10 @@ using namespace HybridAStar;
 //                                     CUSP DETECTION
 //###################################################
 inline bool isCusp(const std::vector<Node3D>& path, int i) {
-  bool revim2 = path[i - 2].getPrim() > 3 ;
-  bool revim1 = path[i - 1].getPrim() > 3 ;
-  bool revi   = path[i].getPrim() > 3 ;
-  bool revip1 = path[i + 1].getPrim() > 3 ;
-  //  bool revip2 = path[i + 2].getPrim() > 3 ;
+  bool revim2 = path[i - 2].getVel() < 0.f;
+  bool revim1 = path[i - 1].getVel() < 0.f;
+  bool revi   = path[i].getVel() < 0.f;
+  bool revip1 = path[i + 1].getVel() < 0.f;
 
   return (revim2 != revim1 || revim1 != revi || revi != revip1);
 }
@@ -97,6 +96,9 @@ void Smoother::tracePath(const Node3D* node, int i, std::vector<Node3D> path) {
 //###################################################
 Vector2D Smoother::obstacleTerm(Vector2D xi) {
   Vector2D gradient;
+  if (width <= 0 || height <= 0 || voronoi.data == nullptr) {
+    return gradient;
+  }
   // the distance to the closest obstacle from the current node
   float obsDst = voronoi.getDistance(xi.getX(), xi.getY());
   // the vector determining where the obstacle is
